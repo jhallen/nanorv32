@@ -29,8 +29,8 @@ initial
     reset_l <= 1;
     // Clear x0
     // FPGA does this in the background
-    sys.rv.rs1_ram.ram[0] = 0;
-    sys.rv.rs2_ram.ram[0] = 0;
+    sys.nanorv32.rs1_ram.ram[0] = 0;
+    sys.nanorv32.rs2_ram.ram[0] = 0;
     @(posedge clk);
     @(posedge clk);
     reset_l <= 0;

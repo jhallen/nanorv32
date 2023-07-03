@@ -1,6 +1,6 @@
 // Pipelined RISC-V CPU core
 
-module rv
+module nanorv32
   (
   input clk,
   input reset_l,

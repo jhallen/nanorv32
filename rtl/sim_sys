@@ -1,5 +1,5 @@
 iverilog -g2001 \
-rv.v \
+nanorv32.v \
 sys.v \
 sys_tb.v \
 ram_dist_dp.v \

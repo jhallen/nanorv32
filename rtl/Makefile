@@ -43,7 +43,7 @@ all: $(TESTS)
 	@echo Runing test $*...
 	@echo
 	make -f Makefile.single TEST=$*.o
-	iverilog -g2001 rv.v sys.v sys_tb.v ram_dist_dp.v ram_blk_dp_bypassed.v rom.v && ./a.out | awk -f check.awk
+	iverilog -g2001 nanorv32.v sys.v sys_tb.v ram_dist_dp.v ram_blk_dp_bypassed.v rom.v && ./a.out | awk -f check.awk
 	@echo
 	@echo Test $* Passed!
 	@echo
