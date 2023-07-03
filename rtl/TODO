@@ -1,0 +1,23 @@
+Now:
+
+  try it with random stalls
+
+  add CSRs and machine mode instructions
+
+  add exception and interrupt handling
+
+  assume branches are taken, provide a simple form
+  of prediction for this
+
+  Add multiply and divide and test them
+
+Later:
+
+  How to do compressed?
+
+  try dhrystone
+
+  Design system around it:
+    icache and spi interface
+    dcache and dram / hyperram interface
+    uart / timers
