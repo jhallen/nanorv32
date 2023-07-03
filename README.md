@@ -11,7 +11,7 @@ load / store and write-back.  All instructions execute in one cycle except
 for multply and divide, a mispredicted branch or when there is a stall due
 to a pipeline hazard.
 
-Nanorv32 is bypassed, so there are very few pipeline stalls due to hazards. 
+Nanorv32 is bypassed, so there are few pipeline stalls due to hazards. 
 However there is one case: when a load is followed by an instruction that
 uses the load result, there is a one cycle delay.  This hazard could be
 eliminated with a bypass MUX, but doing so puts the data load in series with
