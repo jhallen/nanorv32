@@ -1,0 +1,49 @@
+TEST ?= tests/addi.o
+
+all: rv.mem rv0.mem rv1.mem rv2.mem rv3.mem
+
+# GCC bin directory
+TOOL = /opt/riscv32im/bin
+
+CC = ${TOOL}/riscv32-unknown-elf-gcc
+AS = ${TOOL}/riscv32-unknown-elf-gcc
+ASFLAGS = -march=rv32im -c
+CFLAGS = -march=rv32im -ffreestanding
+
+OBJS = ${TEST}
+
+rv.elf: sections.lds $(OBJS)
+	${TOOL}/riscv32-unknown-elf-ld -Bstatic -T sections.lds --strip-debug -nostdlib -o rv.elf -Map rv.map $(OBJS)
+
+# Word hex file for bus_rom.v
+rv.mem: rv.bin bintov
+	./bintov rv.bin rv.mem word
+
+# Low byte for RAM
+rv0.mem: rv.bin bintov
+	./bintov rv.bin rv0.mem byte0
+
+rv1.mem: rv.bin bintov
+	./bintov rv.bin rv1.mem byte1
+
+rv2.mem: rv.bin bintov
+	./bintov rv.bin rv2.mem byte2
+
+rv3.mem: rv.bin bintov
+	./bintov rv.bin rv3.mem byte3
+
+# Byte hex file for simulation
+rv.hex: rv.bin bintob
+	./bintob rv.bin rv.hex
+
+bintov: bintov.c
+	cc -o bintov bintov.c
+
+bintob: bintob.c
+	cc -o bintob bintob.c
+
+rv.bin: rv.elf
+	${TOOL}/riscv32-unknown-elf-objcopy -O binary rv.elf rv.bin
+
+clean:
+	rm -f rv.elf rv.hex rv.bin rv.map *.o *~

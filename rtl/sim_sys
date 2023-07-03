@@ -1,0 +1,8 @@
+iverilog -g2001 \
+rv.v \
+sys.v \
+sys_tb.v \
+ram_dist_dp.v \
+ram_blk_dp_bypassed.v \
+rom.v \
+&& ./a.out

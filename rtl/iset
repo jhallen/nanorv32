@@ -1,0 +1,123 @@
+RISCV
+
+rv32e: only 16 registers instead of 32: x0 - x15
+   x1 is convention to hold return address on a call
+   x0 always reads 0
+
+Instruction formats:
+  R:   funct7[31:25], rs2[24:20], rs1[19:15], funct3[14:12], rd[11:7],  opcode[6:0]
+
+  I:   imm[31:20],                rs1[19:15], funct3[14:12], rd[11:7],  opcode[6:0]
+         12-bit immediate[11:0]     base        width         dest        load
+
+  S:   imm[31:25],    rs2[24:20], rs1[19:15], funct3[14:12], imm[11:7], opcode[6:0]
+         12-bit immediate[11:0]
+         12-bit immediate[12:1] (SB format)
+
+  U:   imm[31:12],                                           rd[11:7],  opcode[6:0]
+         20-bit immediate[31:12]
+         20-bit immediate[20:1] (UJ format)
+
+darkriscv has:
+
+0000011		Lxx
+                 LB (funct3=000)		load byte		I	rd <- mem[rs1 + imm12]  (imm is sign extended)
+                 LH (funct3=001)		load halfword		I
+                 LW (funct3=010)		load word		I
+                 LBU (funct3=100)		load byte unsigned	I
+                 LHU (funct3=101)		load halfword unsigned	I
+                 
+0010011		xxxI
+                 ADDI (funct3=000)					I	rd <- rs1 + imm12 (imm is sign extended)
+                 SLLI (funct3=001) imm has shift amount			I	rs <- rs1 << imm12[4:0]
+                 SLTI (funct3=010)					I	rs <- rs1 < imm12 (imm is sign extended)
+                 SLTIU (funct3=011)					I	rs <- rs1 < imm12 (imm is sign extended) (unsigned comparison)
+                 XORI (funct3=100)					I	rd <- rs1 ^ imm12 (imm is sign extended)
+                 SRLI (funct3=101) imm has shift amount			I	rd <- rs >> imm12[4:0] (unsigned shift)
+                 SRAI (funct3=101) imm has shift amount, but bit 30 set to 1	rd <- rs >> imm12[4:0] (signed shift)
+                 ORI (funct3=110)					I	rd <- rs1 | imm12 (imm is sign extended)
+                 ANDI (funct3=111)					I	rd <- rs1 & imm12 (imm is sign extended)
+
+0010111		AUIPC add upper immediate to pc				U	rd <- pc + (imm20 << 12)  PC is address of AUIPC insn
+
+0100011		Sxx                  					S	rs2 -> mem[rs1 + imm] (imm is sign extended)
+                 SB (funct3=000)		store byte
+                 SH (funct3=001)		store halfword
+                 SW (funct3=010)		store word
+
+0110011		xxx                  R
+                 ADD (funct7=0000000, funct3=000)			R	rd <- rs1 + rs2
+                 SUB (funct7=0100000, funct3=000)			R	rd <- rs1 - rs2
+                 SLL (funct7=0000000, funct3=001)			R	rd <- rs1 << rs2[4:0]
+                 SLT (funct7=0000000, funct3=010)			R	rd <- rs1 < rs2 (signed)
+                 SLTU (funct7=0000000, funct3=011)			R	rd <- rs1 < rs2 (unsigned)
+                 XOR (funct7=0000000, funct3=100)			R	rd <- rs1 ^ rs2
+                 SRL (funct7=0000000, funct3=101)			R	rd <- rs1 >> rs2[4:0] (usigned)
+                 SRA (funct7=0100000, funct3=101)			R	rd <- rs1 >> rs2[4:0] (signed)
+                 OR (funct7=0000000, funct3=110)			R	rd <- rs1 | rs2
+                 AND (funct7=0000000, funct3=111)			R	rd <- rs1 & rs2
+
+  rv32m extension:
+                 MUL (funct7=0000001, funct3=000)   signed		R	rd <- rs1 * rs2
+                 MULH (funct7=0000001, funct3=001)  unsigned		R	rd <- (rs1 * rs2) >> 32   (upper 32-bits of signed product)
+                 MULHSU (funct7=0000001, funct3=010)			R	rd <- (rs1 * rs2) >> 32   (upper 32 bits of signed rs1, unsigned rs2)
+                 MULHU (funct7=0000001, funct3=011)			R	rd <- (rs1 * rs2) >> 32   (upper 32-bits of unsigned product)
+                 DIV (funct7=0000001, funct3=100)   signed		R	rd <- rs1 / rs2  (round towards zero) signed
+                 DIVU (funct7=0000001. funct3=101)  unsigned		R	rd <- rs1 / rs2  (round towards zero) unsigned
+                 REM (funct7=0000001, funct3=110)			R	rd <- rs1 % rs2 (signed) (sign of result is sign of dividend)
+                 REMU (funct7=0000001, func3=111)			R	rd <- rs1 % rs2 (unsigned)
+
+0110111		LUI load upper immediate				U	rd <- (imm20 << 12)
+
+1100011		Bcc
+                 BEQ (funct3=000)					SB	if rs1 == rs2: pc <- pc + (imm12 << 1)
+                 BNE (funct3=001)					SB	if rs1 != rs2: pc <- pc + (imm12 << 1)
+                 BLT (funct3=100)					SB	if rs1 < rs2 (signed): pc <- pc + (imm12 << 1)
+                 BGE (funct3=101)					SB	if rs1 >= rs2 (signed): pc <- pc + (imm12 << 1)
+                 BLTU (funct3=110)					SB	if rs1 < rs2 (unsigned): pc <- pc + (imm12 << 1)
+                 BGEU (funct3=111)					SB	if rs1 >= rs2 (unsigned): pc <- pc + (imm12 << 1)
+
+1100111		JALR jump and link register (funct3=000)		I	rd <- (pc + 4), pc <- rs1 + imm12   imm12 is sign extended, set LSB of rs1 + imm12 to zero
+
+1101111		JAL jump and link					UJ	rd <- (pc + 4), pc <- (pc + (imm20 << 1))  imm20 is sign extended
+										pc is address of JAL instruction
+
+0001111
+                 FENCE   imm = 0|pred|secc, rs1 = 0, funct3 = 0, rd = 0     NOP
+                 FENCE.I imm = 0          , rs1 = 0, funct3 = 1, rd = 0     NOP
+
+1110011		exx, csrxx, mret     I
+                 ECALL   imm = 0, rs1 = 0, funct3 = 0, rd = 0      Operating system call
+                 EBREAK  imm = 1, rs1 = 0, funct3 = 0, rd = 0      Breakpoint
+                 CSRRW   imm = csr,        funct3 = 1			I	rd <- CSR (sign extended), CSR <- rs1  [12 bit CSR number]
+                 CSRRS   imm = csr,        funct3 = 2			I	rd <- CSR (sign extended), CSR <- CSR | rs1
+                 CSRRC   imm = csr,        funct3 = 3			I	rd <- CSR (sign extended), CSR <- CSR | ~rs1
+                 CSRRWI   imm = csr, rs1 = zimm, funct3 = 5		I	rd <- CSR (sign extended), CSR <- zimm  (rs1 used as unsigned imm5 value)
+                 CSRRSI   imm = csr, rs1 = zimm, funct3 = 6		I	rd <- CSR (sign extended), CSR <- CSR | zimm
+                 CSRRCI   imm = csr, rs1 = zimm, funct3 = 7		I	rd <- CSR (sign extended), CSR <- CSR | ~zimm
+		MRET	funct7=0x18, rs2=2, rs1=0, funct3=0, rd=0		pc <- MEPC, MPIE -> MIE
+ 		WFI	funct7=0x08, rs2=5, rs1=0, funct3=0, rd=0		NOP
+
+- - - - -
+Exceptions:
+		Save PC of failing instruction in mepc
+		MIE -> MPIE, 0 -> MIE
+		mtvec -> PC (or use vector table)
+
+CSRs:
+
+0x300		mstatus / mstatush ?
+			MIE	Machine mode interrupt enable
+			PMIE	Prior machine mode interrupt enable
+
+0x305		mtvec	Hold vector table address or trap address
+
+0x304		mie	Interrupt enable bits
+
+0x344		mip	Interrupt pending bits
+
+0x341		mepc	Holds interrupt return address
+
+0x342		mcause	Holds code for trap
+
+0x340		mscratch
