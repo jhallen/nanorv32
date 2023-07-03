@@ -36,6 +36,8 @@ tests/sw \
 tests/xori \
 tests/xor \
 
+SRCS = nanorv32.v sys.v sys_tb.v ram_dist_dp.v ram_blk_dp_bypassed.v rom.v
+
 all: $(TESTS)
 
 %: %.S
@@ -43,7 +45,7 @@ all: $(TESTS)
 	@echo Runing test $*...
 	@echo
 	make -f Makefile.single TEST=$*.o
-	iverilog -g2001 nanorv32.v sys.v sys_tb.v ram_dist_dp.v ram_blk_dp_bypassed.v rom.v && ./a.out | awk -f check.awk
+	iverilog -g2001 $(SRCS) && ./a.out | awk -e 'BEGIN { err = 1 }; /Test passed/ { err = 0 }; // { print }; END { exit err }'
 	@echo
 	@echo Test $* Passed!
 	@echo
