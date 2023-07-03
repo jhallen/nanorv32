@@ -1,9 +1,9 @@
 # nanorv32
 
-This is intended to be a more efficient but lower fMAX version of Clifford
-Wolf's "picorv32."  This means that it is intended to be used as a
-microcontroller core, so no MMU or Linux support.  Compared with picorv32,
-nanorv32 will run at approximately one cycle per instruction instead of 3 or
+Nanorv32 is intended to be a more efficient but lower fMAX version of
+Clifford Wolf's "picorv32." This means that it is intended to be used as a
+microcontroller core, so no MMU is included and it can not run Linux. 
+Nanorv32 will run at approximately one cycle per instruction instead of 3 or
 4.
 
 Nanorv32 has a four stage pipeline: fetch, decode / register read, execute /
@@ -18,7 +18,7 @@ eliminated with a bypass MUX, but doing so puts the data load in series with
 the ALU, and the impact on fMAX is too much.  Instead we choose to stall
 this case.
 
-xNanorv32 has a static branch predictor.  This means that the fetch stage
+Nanorv32 uses a static branch predictor.  This means that the fetch stage
 calculates JAL targets, so JAL takes one cycle.  It also calculates
 conditional branch targets and assumes conditional branches are taken.  So
 conditional branches take one cycle unless the condition fails, in which
