@@ -3,8 +3,8 @@
 Nanorv32 is intended to be a more efficient but lower fMAX version of
 Clifford Wolf's "picorv32." This means that it is intended to be used as a
 microcontroller core, so no MMU is included and it can not run Linux. 
-Nanorv32 will run at approximately one cycle per instruction instead of 3 or
-4.
+Nanorv32 will run at approximately one cycle per instruction instead of the
+3 or 4 you get with picorv32.
 
 Nanorv32 has a four stage pipeline: fetch, decode / register read, execute /
 load / store and write-back.  All instructions execute in one cycle except
@@ -20,9 +20,10 @@ this case.
 
 Nanorv32 uses a static branch predictor.  This means that the fetch stage
 calculates JAL targets, so JAL takes one cycle.  It also calculates
-conditional branch targets and assumes conditional branches are taken.  So
-conditional branches take one cycle unless the condition fails, in which
-case they take three cycles.  JALR always takes three cycles.
+conditional branch targets and assumes that conditional branches going
+backward are taken and ones going forward are not taken.  If this prediction
+ends up being incorrect, the branch takes three cycles.  JALR always takes
+three cycles.
 
 # Interface
 
