@@ -19,11 +19,11 @@ the ALU, and the impact on fMAX is too much.  Instead we choose to stall
 this case.
 
 Nanorv32 uses a static branch predictor.  This means that the fetch stage
-calculates JAL targets, so JAL takes one cycle.  It also calculates
-conditional branch targets and assumes that conditional branches going
-backward are taken and ones going forward are not taken.  If this prediction
-ends up being incorrect, the branch takes three cycles.  JALR always takes
-three cycles.
+calculates JAL (Jump And Link instrucion) targets, so JAL takes one cycle. 
+It also calculates conditional branch targets and assumes that conditional
+branches going backward are taken and ones going forward are not taken.  If
+this prediction ends up being incorrect, the branch takes three cycles. 
+JALR always takes three cycles.
 
 # Interface
 
