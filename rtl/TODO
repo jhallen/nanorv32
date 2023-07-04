@@ -6,9 +6,6 @@ Now:
 
   add exception and interrupt handling
 
-  assume branches are taken, provide a simple form
-  of prediction for this
-
   Add multiply and divide and test them
 
 Later:

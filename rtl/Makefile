@@ -51,4 +51,5 @@ all: $(TESTS)
 	@echo
 
 clean:
-	rm -f tests/*.o
+	rm -f tests/*.o rv0.mem rv1.mem rv2.mem rv3.mem rv.mem a.out dump.vcd
+	make -f Makefile.single clean

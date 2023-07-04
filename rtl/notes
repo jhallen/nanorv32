@@ -110,14 +110,14 @@ CSRs:
 			MIE	Machine mode interrupt enable
 			PMIE	Prior machine mode interrupt enable
 
-0x305		mtvec	Hold vector table address or trap address
-
 0x304		mie	Interrupt enable bits
 
-0x344		mip	Interrupt pending bits
+0x305		mtvec	Hold vector table address or trap address
+
+0x340		mscratch
 
 0x341		mepc	Holds interrupt return address
 
-0x342		mcause	Holds code for trap
+0x344		mip	Interrupt pending bits
 
-0x340		mscratch
+0x342		mcause	Holds code for trap

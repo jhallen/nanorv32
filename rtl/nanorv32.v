@@ -1,5 +1,7 @@
 // Pipelined RISC-V CPU core
 
+`define STATIC_PREDICT
+
 module nanorv32
   (
   input clk,
@@ -63,12 +65,25 @@ always @(posedge clk)
   else
     pc <= ns_pc;
 
+wire [31:0] insn_1 = imem_rd_data;
+
+wire [31:0] jump_imm20_1 = { { 19 { insn_1[31] } }, insn_1[31], insn_1[19:12], insn_1[20], insn_1[30:21], 1'd0 }; // J-type (WTF?)
+wire [31:0] branch_imm12_1 = { { 19 { insn_1[31] } }, insn_1[31], insn_1[7], insn_1[30:25], insn_1[11:8], 1'd0 }; // B-Type (WTF?)
+reg ns_jumpimm_2;
+reg ns_branch_2;
+
 always @*
   begin
     ns_pc = pc;
     if (!stall && !hazard)
       if (jump)
         ns_pc = jump_to;
+`ifdef STATIC_PREDICT
+      else if (ns_jumpimm_2)
+        ns_pc = pc + jump_imm20_1;
+      else if (ns_branch_2 && branch_imm12_1[31]) // Assume backward branches are taken, forward branches are not
+        ns_pc = pc + branch_imm12_1;
+`endif
       else
         ns_pc = pc + 32'h4;
     if (!reset_l)
@@ -79,7 +94,6 @@ assign imem_rd_addr = ns_pc;
 
 // Outputs to next stage:
 
-wire [31:0] insn_1 = imem_rd_data;
 wire [31:0] pc_1 = pc;
 
 //
@@ -135,7 +149,7 @@ reg load_2, ns_load_2; // Modified by signed
 reg fake_2, ns_fake_2;
 reg store_2, ns_store_2; // Save register to memory
 reg mret_2, ns_mret_2;
-reg branch_2, ns_branch_2;
+reg branch_2;
 reg jump_2, ns_jump_2;
 reg csr_2, ns_csr_2;
 
@@ -167,7 +181,7 @@ reg upper_2, ns_upper_2; // Modified by signed
 reg mixed_2, ns_mixed_2;
 reg div_2, ns_div_2; // Modified by signed
 reg rem_2, ns_rem_2; // Modified by signed
-reg jumpimm_2, ns_jumpimm_2;
+reg jumpimm_2;
 reg csr_set_2, ns_csr_set_2;
 reg csr_clr_2, ns_csr_clr_2;
 reg csr_imm_2, ns_csr_imm_2;
@@ -977,8 +991,13 @@ assign dmem_wr_be = be_3;
 
 // Jump
 reg condition_true_3;
+`ifdef STATIC_PREDICT
+assign jump_to = (branch_3 && !condition_true_3) ? pc_3 + 3'd4 : target_addr_3;
+assign jump = (jump_3 || (branch_3 && condition_true_3)) && jump_to != pc_2 || (branch_3 && !condition_true_3 && pc_3 + 3'd4 != pc_2);
+`else
 assign jump_to = target_addr_3;
-assign jump = jump_3 || (branch_3 && condition_true_3);
+assign jump = (jump_3 || (branch_3 && condition_true_3));
+`endif
 
 always @*
   begin
