@@ -2,6 +2,7 @@ module sys
   (
   reset_l,
   clk,
+  irq,
   inport,
   outport,
   );
@@ -13,6 +14,7 @@ parameter ROMWIDTH=12;
 
 input reset_l;
 input clk;
+input irq;
 
 input [31:0] inport;
 output [31:0] outport;
@@ -39,7 +41,7 @@ nanorv32 nanorv32
   .reset_l (reset_l),
 
   .stall (1'd0),
-  .irq (32'd0),
+  .irq ({ 31'd0, irq }),
 
   .imem_rd_addr (imem_rd_addr),
   .imem_rd_data (imem_rd_data),

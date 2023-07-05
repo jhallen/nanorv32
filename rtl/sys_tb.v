@@ -2,11 +2,13 @@ module tb;
 
 reg clk;
 reg reset_l;
+reg irq;
 
 sys sys
   (
   .clk (clk),
-  .reset_l (reset_l)
+  .reset_l (reset_l),
+  .irq (irq)
   );
 
 always
@@ -27,6 +29,7 @@ initial
     $display("Hi there!\n");
     clk <= 0;
     reset_l <= 1;
+    irq <= 0;
     // Clear x0
     // FPGA does this in the background
     sys.nanorv32.rs1_ram.ram[0] = 0;
@@ -41,8 +44,18 @@ initial
     @(posedge clk);
 
     for (x = 0; x != 1000; x = x + 1)
-      @(posedge clk);
-
+      begin
+        if (x == 200)
+          irq <= 1;
+        if (x == 203)
+          irq <= 0;
+        if (x == 400)
+          irq <= 1;
+        if (x == 403)
+          irq <= 0;
+        @(posedge clk);
+      end
+ 
     $finish;
   end
 

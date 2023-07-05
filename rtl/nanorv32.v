@@ -873,7 +873,7 @@ always @(posedge clk)
       signed_3 <= signed_2;
       insn_3 <= insn_2;
       pc_3 <= pc_2;
-      csr_imm_3 <= csr_2;
+      csr_imm_3 <= csr_imm_2;
       csr_set_3 <= csr_set_2;
       csr_clr_3 <= csr_clr_2;
       // NOP this instruction if we jump
