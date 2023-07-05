@@ -39,6 +39,7 @@ nanorv32 nanorv32
   .reset_l (reset_l),
 
   .stall (1'd0),
+  .irq (32'd0),
 
   .imem_rd_addr (imem_rd_addr),
   .imem_rd_data (imem_rd_data),

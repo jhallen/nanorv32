@@ -15,6 +15,9 @@ module nanorv32
   // that stall is high.
   input stall,
 
+  // Interrupt requests
+  input [31:0] irq,
+
   // Read from instruction memory with a one flop delay
   //  new imem_rd_addr given in cycle 0
   //  data at location imem_rd_addr appears in cycle 1
@@ -56,8 +59,8 @@ reg hazard;
 // to be there, but instruction is treated as invalid).
 reg [31:0] pc, ns_pc;
 
-wire jump;
-wire [31:0] jump_to;
+reg jump;
+reg [31:0] jump_to;
 
 always @(posedge clk)
   if (!reset_l)
@@ -770,6 +773,7 @@ always @*
         ns_branch_2 = 0;
         ns_load_2 = 0;
         ns_fake_2 = 0;
+        ns_csr_2 = 0;
      end
   end
 
@@ -780,6 +784,11 @@ always @*
 // Stage 3 outputs:
 
 reg load_3;
+reg mret_3;
+reg csr_3;
+reg csr_imm_3;
+reg csr_set_3;
+reg csr_clr_3;
 reg fake_3;
 reg write_3;
 reg store_3;
@@ -789,6 +798,7 @@ reg byte_3;
 reg half_3;
 reg signed_3;
 reg [31:0] rs2_3;
+reg [31:0] rs1_3;
 reg [31:0] insn_3;
 reg [31:0] pc_3;
 reg not_equal_3, ne; // Not equal
@@ -815,10 +825,18 @@ reg [31:0] dmem_rd_addr_3;
 always @(posedge clk)
   if (!reset_l)
     begin
+      mret_3 <= 0;
       rs2_3 <= 0;
+      rs1_3 <= 0;
       alu_3 <= 0;
       return_addr_3 <= 0;
       target_addr_3 <= 0;
+      load_3 <= 0;
+      fake_3 <= 0;
+      csr_3 <= 0;
+      csr_imm_3 <= 0;
+      csr_set_3 <= 0;
+      csr_clr_3 <= 0; 
       write_3 <= 0;
       store_3 <= 0;
       jump_3 <= 0;
@@ -838,6 +856,7 @@ always @(posedge clk)
     end
   else if (!stall)
     begin
+      mret_3 <= mret_2;
       eq_3 <= eq_2;
       ne_3 <= ne_2;
       lt_3 <= lt_2;
@@ -848,13 +867,18 @@ always @(posedge clk)
       target_addr_3 <= ns_target_addr_3;
       // Pass on control bits to next stage
       rs2_3 <= bypass_rs2;
+      rs1_3 <= bypass_rs1;
       byte_3 <= byte_2;
       half_3 <= half_2;
       signed_3 <= signed_2;
       insn_3 <= insn_2;
       pc_3 <= pc_2;
+      csr_imm_3 <= csr_2;
+      csr_set_3 <= csr_set_2;
+      csr_clr_3 <= csr_clr_2;
       // NOP this instruction if we jump
       load_3 <= load_2 && !jump && !hazard;
+      csr_3 <= csr_2 && !jump && !hazard;
       fake_3 <= fake_2 && !jump && !hazard;
       write_3 <= write_2 && !jump && !hazard;
       store_3 <= store_2 && !jump && !hazard;
@@ -964,6 +988,8 @@ always @*
       ns_target_addr_3 = pc_2 + jump_imm20; // use for JAL
     else if (store_2)
       ns_target_addr_3 = bypass_rs1 + store_imm12; // Use for store
+    else if (mret_2)
+      ns_target_addr_3 = csr_mepc;
     else
       ns_target_addr_3 = ea; // ea is rs1 + imm12, use for JALR
   end
@@ -971,6 +997,17 @@ always @*
 //
 // Stage 4: write back
 //
+
+reg do_exception;
+
+reg mie;
+reg mpie;
+reg [31:0] csr_mie;
+reg [31:0] csr_mtvec;
+reg [31:0] csr_mscratch;
+reg [31:0] csr_mepc;
+reg [31:0] csr_mcause;
+reg [31:0] csr_mip;
 
 reg [31:0] result_3;
 reg [31:0] selected_load;
@@ -980,27 +1017,27 @@ reg [3:0] be_3;
 // Write back to register file
 assign rd_wr_data = result_3;
 assign rd_wr_addr = insn_3[11:7];
-assign rd_we = write_3;
+assign rd_we = write_3 && !do_exception;
 
 // Store
 reg [31:0] store_data;
 assign dmem_wr_data = store_data;
 assign dmem_wr_addr = target_addr_3;
-assign dmem_wr_req = store_3;
+assign dmem_wr_req = store_3 && !do_exception;
 assign dmem_wr_be = be_3;
 
-// Jump
 reg condition_true_3;
-`ifdef STATIC_PREDICT
-assign jump_to = (branch_3 && !condition_true_3) ? pc_3 + 3'd4 : target_addr_3;
-assign jump = (jump_3 || (branch_3 && condition_true_3)) && jump_to != pc_2 || (branch_3 && !condition_true_3 && pc_3 + 3'd4 != pc_2);
-`else
-assign jump_to = target_addr_3;
-assign jump = (jump_3 || (branch_3 && condition_true_3));
-`endif
+
+reg [31:0] selected_csr;
+reg [31:0] updated_csr;
+reg [31:0] csr_modifier;
 
 always @*
   begin
+    do_exception = 0;
+    jump = 0;
+    jump_to = target_addr_3;
+
     // Evaluate branch condition
     casex ({ lt_3, ge_3, ne_3, eq_3}) // synthesis parallel_case full_case
       4'bxxx1: condition_true_3 = ~not_equal_3;
@@ -1008,6 +1045,38 @@ always @*
       4'bx1xx: condition_true_3 = ~less_than_3;
       4'b1xxx: condition_true_3 = less_than_3;
     endcase
+
+    // Jumps and exceptions
+    if (mie && |(csr_mip & csr_mie))
+      begin
+        do_exception = 1;
+        jump = 1;
+        jump_to = csr_mtvec;
+      end
+`ifdef STATIC_PREDICT
+    else if (branch_3 && !condition_true_3 && pc_2 != pc_3 + 3'd4)
+      begin
+        jump = 1;
+        jump_to = pc_3 + 3'd4;
+      end
+    else if ((mret_3 || jump_3 || branch_3 && condition_true_3) && pc_2 != target_addr_3)
+      begin
+        jump = 1;
+        jump_to = target_addr_3;
+      end
+`else
+    else if (mret_3)
+      begin
+        jump = 1;
+        jump_to = target_addr_3;
+      end
+    else if (branch_3 && condition_true_3 || mret_3 || jump_3)
+      begin
+        jump = 1;
+        jump_to = target_addr_3;
+      end
+`endif
+
     // dmem write datapath: select byte, half or word
     if (byte_3)
       begin
@@ -1049,20 +1118,91 @@ always @*
     else
       extended_load = selected_load;
 
+    // CSR read
+    case (insn_3[31:20])
+      12'h300: selected_csr = { 24'd0, mpie, 3'd0, mie, 3'd0 }; // mstatus
+      12'h304: selected_csr = csr_mie; // mie
+      12'h305: selected_csr = csr_mtvec; // mtvec
+      12'h340: selected_csr = csr_mscratch;// mscratch
+      12'h341: selected_csr = csr_mepc; // mepc
+      12'h342: selected_csr = csr_mcause; // mcause
+      12'h344: selected_csr = csr_mip; // mip
+      default: selected_csr = 0;
+    endcase
+
+    if (csr_imm_3)
+      csr_modifier = { 27'd0, insn_3[19:15] };
+    else
+      csr_modifier = rs1_3;
+
+    if (csr_set_3)
+      updated_csr = selected_csr | csr_modifier;
+    else if (csr_clr_3)
+      updated_csr = selected_csr & ~csr_modifier;
+    else
+      updated_csr = csr_modifier;
+
     // Select which data to write-back
     if (load_3)
       result_3 = extended_load;
     else if (jump_3)
       result_3 = return_addr_3;
+    else if (csr_3)
+      result_3 = selected_csr;
     else
       result_3 = alu_3;
 
     // Don't bypass loads
     if (jump_3)
       bypass_wr_data = return_addr_3;
+    else if (csr_3)
+      bypass_wr_data = selected_csr;
     else
       bypass_wr_data = alu_3;
   end
+
+always @(posedge clk)
+  if (!reset_l)
+    begin
+      mie <= 0;
+      mpie <= 0;
+      csr_mie <= 0;
+      csr_mtvec <= 0;
+      csr_mscratch <= 0;
+      csr_mepc <= 0;
+      csr_mcause <= 0;
+      csr_mip <= 0;
+    end
+  else if (!stall)
+    begin
+      csr_mip <= irq; // Interrupt pending
+      // Save address of interrupted instruction
+      if (do_exception)
+        begin
+          csr_mepc <= pc_3;
+          mie <= 0;
+          mpie <= mie;
+        end
+      // Return from exception: restore interrupt flag
+      else if (mret_3)
+        begin
+          mie <= mpie;
+          mpie <= 1;
+        end
+      else if (csr_3)
+        case (insn_3[31:20])
+          12'h300: // mstatus
+            begin
+              mie <= updated_csr[3];
+              mpie <= updated_csr[7];
+            end
+          12'h304: csr_mie <= updated_csr; // mie
+          12'h305: csr_mtvec <= updated_csr; // mtvec
+          12'h340: csr_mscratch <= updated_csr;// mscratch
+          12'h341: csr_mepc <= updated_csr; // mepc
+          12'h342: csr_mcause <= updated_csr; // mcause
+        endcase
+    end
 
 // Generate instruction trace for debugging
 
@@ -1076,7 +1216,7 @@ always @(posedge clk)
   begin
     // Instruction decoder
 
-    if (jump_3 || store_3 || write_3 || branch_3 || load_3 || fake_3) // Suppress if instruction was NOPd
+    if (csr_3 || mret_3 || jump_3 || store_3 || write_3 || branch_3 || load_3 || fake_3) // Suppress if instruction was NOPd
     casex (insn_3)
       //  f7      rs2   rs1   f3  rd    opcode
       32'bxxxxxxx_xxxxx_xxxxx_000_xxxxx_0000011: // LB Load signed byte

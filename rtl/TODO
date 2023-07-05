@@ -2,9 +2,7 @@ Now:
 
   try it with random stalls
 
-  add CSRs and machine mode instructions
-
-  add exception and interrupt handling
+  try exceptions at random times (particularly around hazards and stalls)
 
   Add multiply and divide and test them
 

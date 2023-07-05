@@ -95,7 +95,7 @@ darkriscv has:
                  CSRRWI   imm = csr, rs1 = zimm, funct3 = 5		I	rd <- CSR (sign extended), CSR <- zimm  (rs1 used as unsigned imm5 value)
                  CSRRSI   imm = csr, rs1 = zimm, funct3 = 6		I	rd <- CSR (sign extended), CSR <- CSR | zimm
                  CSRRCI   imm = csr, rs1 = zimm, funct3 = 7		I	rd <- CSR (sign extended), CSR <- CSR | ~zimm
-		MRET	funct7=0x18, rs2=2, rs1=0, funct3=0, rd=0		pc <- MEPC, MPIE -> MIE
+		MRET	funct7=0x18, rs2=2, rs1=0, funct3=0, rd=0		pc <- MEPC, MPIE -> MIE, 1 -> MPIE
  		WFI	funct7=0x08, rs2=5, rs1=0, funct3=0, rd=0		NOP
 
 - - - - -
@@ -107,8 +107,8 @@ Exceptions:
 CSRs:
 
 0x300		mstatus / mstatush ?
-			MIE	Machine mode interrupt enable
-			PMIE	Prior machine mode interrupt enable
+			MIE[3]	Machine mode interrupt enable
+			MPIE[7]	Prior machine mode interrupt enable
 
 0x304		mie	Interrupt enable bits
 
@@ -118,6 +118,9 @@ CSRs:
 
 0x341		mepc	Holds interrupt return address
 
+0x342		mcause	Holds code for trap
+
 0x344		mip	Interrupt pending bits
 
-0x342		mcause	Holds code for trap
+- - -
+Machine level is the only supported privilege level.  Code for it is 0b11.

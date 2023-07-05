@@ -60,3 +60,9 @@ inner:
 	fail
 
 	j loop
+
+	csrrwi	x4, 0x304, 0x1f
+	ecall
+	ebreak
+	wfi
+	mret
